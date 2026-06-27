@@ -16,10 +16,10 @@ GEMINI_API_KEY=...                 # サーバー側のみ
 - `SUPABASE_SERVICE_ROLE_KEY` と `GEMINI_API_KEY` はクライアントへ露出しない（API Route / Server Action 内でのみ使用）。
 - 雛形は `.env.local.example` を参照。
 
-## 2. データベース / Storage の初期化
+## 2. データベースの初期化
 
 `supabase/migrations/0001_init.sql` を Supabase の SQL Editor に貼り付けて実行する。
-（3テーブル・トリガ・RLS・Storage バケット `lumiere-images` を一括作成）
+（3テーブル・トリガ・RLS を一括作成）
 
 Supabase CLI を使う場合：
 
@@ -27,8 +27,8 @@ Supabase CLI を使う場合：
 supabase db push   # もしくは psql で 0001_init.sql を流す
 ```
 
-> Storage バケットは public 読み取り・サーバー（service role）書き込み。
 > RLS は読み取りのみ anon に開放し、書き込みはサーバー経由（service role）で行う。
+> 画像は扱わない（テキストのマスタ管理のみ）。
 
 ## 3. 開発サーバー
 
@@ -40,8 +40,7 @@ npm run dev
 
 ## 4. 使い方
 
-1. **商品マスター**（`/settings/products`）と**背景素材マスター**（`/settings/backgrounds`）に画像つきで登録。
-   - 画像はブラウザ側で長辺1200px・JPEGへ自動圧縮してからアップロード。
+1. **商品マスター**（`/settings/products`）と**背景素材マスター**（`/settings/backgrounds`）を登録（名前・カテゴリ・素材・メモ）。
 2. **撮影プランナー**（`/planner`）で商品を1つ＋背景素材を任意で選び、「プランを生成」。
    - 構図・ライティング・小物配置・雰囲気・Tips・投稿文・ハッシュタグを Gemini が生成。
 3. 投稿文・ハッシュタグを編集して「下書き保存」。
@@ -58,6 +57,7 @@ vercel
 ## アーキテクチャ要点
 
 - 読み取り：Server Components（`lib/data.ts`）が service role で取得。
-- 書き込み：Server Actions（`app/**/actions.ts`）＋ 画像は `app/api/upload`。
-- 生成：`app/api/generate`（`lib/gemini.ts`、`gemini-2.0-flash`、JSON 厳格出力＋フォールバックパース）。
+- 書き込み：Server Actions（`app/**/actions.ts`）。
+- 生成：`app/api/generate`（`lib/gemini.ts`、`GEMINI_MODEL`（既定 `gemini-2.5-flash`）、JSON 厳格出力＋フォールバックパース）。
+- 画像は扱わない（テキストのみのマスタ管理）。
 - 単一ユーザー内部ツール想定のため UI 認証は未実装（RLS と service role で保護）。

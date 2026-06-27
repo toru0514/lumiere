@@ -9,10 +9,8 @@ import {
   type ColumnDef,
 } from "@tanstack/react-table";
 import { PRODUCT_CATEGORIES, categoryLabel, type Product } from "@/types";
-import { storagePublicUrl } from "@/lib/supabase/constants";
 import { createProduct, deleteProduct, updateProduct } from "@/app/settings/products/actions";
 import Modal from "@/components/Modal";
-import ImageUploader from "@/components/ImageUploader";
 import EmptyState from "@/components/EmptyState";
 import { Button, inputClass, labelClass } from "@/components/ui";
 
@@ -22,8 +20,6 @@ interface FormState {
   category: string;
   material: string;
   description: string;
-  image_path: string | null;
-  previousImagePath: string | null;
 }
 
 const EMPTY: FormState = {
@@ -32,8 +28,6 @@ const EMPTY: FormState = {
   category: PRODUCT_CATEGORIES[0].value,
   material: "",
   description: "",
-  image_path: null,
-  previousImagePath: null,
 };
 
 export default function ProductTable({ products }: { products: Product[] }) {
@@ -56,8 +50,6 @@ export default function ProductTable({ products }: { products: Product[] }) {
       category: p.category,
       material: p.material ?? "",
       description: p.description ?? "",
-      image_path: p.image_path,
-      previousImagePath: p.image_path,
     });
     setError(null);
     setOpen(true);
@@ -71,10 +63,9 @@ export default function ProductTable({ products }: { products: Product[] }) {
         category: form.category,
         material: form.material,
         description: form.description,
-        image_path: form.image_path,
       };
       const res = form.id
-        ? await updateProduct(form.id, input, form.previousImagePath)
+        ? await updateProduct(form.id, input)
         : await createProduct(input);
       if (!res.ok) {
         setError(res.error ?? "保存に失敗しました。");
@@ -88,7 +79,7 @@ export default function ProductTable({ products }: { products: Product[] }) {
   function remove(p: Product) {
     if (!confirm(`「${p.name}」を削除しますか？`)) return;
     startTransition(async () => {
-      const res = await deleteProduct(p.id, p.image_path);
+      const res = await deleteProduct(p.id);
       if (!res.ok) {
         alert(res.error ?? "削除に失敗しました。");
         return;
@@ -99,25 +90,6 @@ export default function ProductTable({ products }: { products: Product[] }) {
 
   const columns = useMemo<ColumnDef<Product>[]>(
     () => [
-      {
-        header: "画像",
-        accessorKey: "image_path",
-        cell: ({ row }) => {
-          const url = storagePublicUrl(row.original.image_path);
-          return url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={url}
-              alt={row.original.name}
-              className="h-12 w-12 rounded-md object-cover"
-            />
-          ) : (
-            <div className="flex h-12 w-12 items-center justify-center rounded-md bg-stone-100 text-xs text-stone-400">
-              なし
-            </div>
-          );
-        },
-      },
       { header: "商品名", accessorKey: "name" },
       {
         header: "カテゴリ",
@@ -201,38 +173,28 @@ export default function ProductTable({ products }: { products: Product[] }) {
         title={form.id ? "商品を編集" : "商品を追加"}
       >
         <div className="space-y-4">
-          <div className="flex gap-4">
-            <ImageUploader
-              folder="products"
-              initialUrl={storagePublicUrl(form.previousImagePath)}
-              initialPath={form.previousImagePath}
-              onUploaded={(path) => setForm((f) => ({ ...f, image_path: path }))}
+          <div>
+            <label className={labelClass}>商品名 *</label>
+            <input
+              className={inputClass}
+              value={form.name}
+              placeholder="木の指輪"
+              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
             />
-            <div className="flex-1 space-y-3">
-              <div>
-                <label className={labelClass}>商品名 *</label>
-                <input
-                  className={inputClass}
-                  value={form.name}
-                  placeholder="ウォルナットのバングル"
-                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                />
-              </div>
-              <div>
-                <label className={labelClass}>カテゴリ *</label>
-                <select
-                  className={inputClass}
-                  value={form.category}
-                  onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
-                >
-                  {PRODUCT_CATEGORIES.map((c) => (
-                    <option key={c.value} value={c.value}>
-                      {c.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
+          </div>
+          <div>
+            <label className={labelClass}>カテゴリ *</label>
+            <select
+              className={inputClass}
+              value={form.category}
+              onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
+            >
+              {PRODUCT_CATEGORIES.map((c) => (
+                <option key={c.value} value={c.value}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>

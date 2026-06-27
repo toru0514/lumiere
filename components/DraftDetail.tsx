@@ -8,7 +8,6 @@ import {
   type Background,
   type DraftWithProduct,
 } from "@/types";
-import { storagePublicUrl } from "@/lib/supabase/constants";
 import { buildCaption, formatDate, hashtagsToText, textToHashtags } from "@/lib/format";
 import {
   deleteDraft,
@@ -40,7 +39,6 @@ export default function DraftDetail({ draft, backgrounds }: Props) {
     [caption, hashtagsText],
   );
 
-  const productUrl = storagePublicUrl(draft.product?.image_path);
   const plan = draft.shoot_plan;
 
   function save() {
@@ -91,31 +89,19 @@ export default function DraftDetail({ draft, backgrounds }: Props) {
   return (
     <div className="space-y-6">
       {/* 商品・背景素材 */}
-      <section className="flex items-center gap-4 rounded-xl border border-stone-200 bg-white p-4">
-        <div className="h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-stone-100">
-          {productUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={productUrl} alt="" className="h-full w-full object-cover" />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-xs text-stone-400">
-              画像なし
-            </div>
-          )}
+      <section className="rounded-xl border border-stone-200 bg-white p-4">
+        <div className="flex items-center gap-2">
+          <h2 className="truncate text-base font-medium text-stone-800">
+            {draft.product?.name ?? "（商品なし）"}
+          </h2>
+          <StatusBadge status={status} />
         </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <h2 className="truncate text-base font-medium text-stone-800">
-              {draft.product?.name ?? "（商品なし）"}
-            </h2>
-            <StatusBadge status={status} />
-          </div>
-          {backgrounds.length > 0 && (
-            <p className="mt-1 text-xs text-stone-500">
-              背景：{backgrounds.map((b) => b.name).join("、")}
-            </p>
-          )}
-          <p className="mt-1 text-xs text-stone-400">{formatDate(draft.created_at)} 作成</p>
-        </div>
+        {backgrounds.length > 0 && (
+          <p className="mt-1 text-xs text-stone-500">
+            背景：{backgrounds.map((b) => b.name).join("、")}
+          </p>
+        )}
+        <p className="mt-1 text-xs text-stone-400">{formatDate(draft.created_at)} 作成</p>
       </section>
 
       {/* 撮影プラン */}

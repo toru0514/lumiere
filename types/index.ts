@@ -32,7 +32,6 @@ export interface Product {
   category: string;
   material: string | null;
   description: string | null;
-  image_path: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -44,7 +43,6 @@ export interface Background {
   tag: string | null;
   mood: string | null;
   description: string | null;
-  image_path: string | null;
   created_at: string;
   updated_at: string;
 }

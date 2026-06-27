@@ -11,7 +11,6 @@ import {
   type Product,
   type ShootPlan,
 } from "@/types";
-import { storagePublicUrl } from "@/lib/supabase/constants";
 import { hashtagsToText, textToHashtags } from "@/lib/format";
 import { createDraft } from "@/app/drafts/actions";
 import SelectableCard from "@/components/SelectableCard";
@@ -133,7 +132,6 @@ export default function Planner({ products, backgrounds }: Props) {
               key={p.id}
               name={p.name}
               subtitle={categoryLabel(p.category)}
-              imageUrl={storagePublicUrl(p.image_path)}
               selected={productId === p.id}
               onClick={() => setProductId(p.id)}
             />
@@ -166,7 +164,6 @@ export default function Planner({ products, backgrounds }: Props) {
                   key={b.id}
                   name={b.name}
                   subtitle={tagLabel(b.tag)}
-                  imageUrl={storagePublicUrl(b.image_path)}
                   selected={idx !== -1}
                   badge={idx !== -1 ? String(idx + 1) : null}
                   onClick={() => toggleBg(b.id)}

@@ -10,7 +10,6 @@ create table if not exists lumiere_products (
   category text not null,
   material text,
   description text,
-  image_path text,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
@@ -24,7 +23,6 @@ create table if not exists lumiere_backgrounds (
   tag text,
   mood text,
   description text,
-  image_path text,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
@@ -91,13 +89,3 @@ create policy lumiere_backgrounds_read on lumiere_backgrounds
 drop policy if exists lumiere_drafts_read on lumiere_drafts;
 create policy lumiere_drafts_read on lumiere_drafts
   for select using (true);
-
--- =========================================================
--- 5. Storage バケット lumiere-images
---   public 読み取り可。書き込みは service role 経由。
--- =========================================================
-insert into storage.buckets (id, name, public, file_size_limit)
-values ('lumiere-images', 'lumiere-images', true, 52428800)
-on conflict (id) do update
-  set public = excluded.public,
-      file_size_limit = excluded.file_size_limit;

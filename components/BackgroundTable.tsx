@@ -9,14 +9,12 @@ import {
   type ColumnDef,
 } from "@tanstack/react-table";
 import { BACKGROUND_TAGS, tagLabel, type Background } from "@/types";
-import { storagePublicUrl } from "@/lib/supabase/constants";
 import {
   createBackground,
   deleteBackground,
   updateBackground,
 } from "@/app/settings/backgrounds/actions";
 import Modal from "@/components/Modal";
-import ImageUploader from "@/components/ImageUploader";
 import EmptyState from "@/components/EmptyState";
 import { Button, inputClass, labelClass } from "@/components/ui";
 
@@ -26,8 +24,6 @@ interface FormState {
   tag: string;
   mood: string;
   description: string;
-  image_path: string | null;
-  previousImagePath: string | null;
 }
 
 const EMPTY: FormState = {
@@ -36,8 +32,6 @@ const EMPTY: FormState = {
   tag: BACKGROUND_TAGS[0].value,
   mood: "",
   description: "",
-  image_path: null,
-  previousImagePath: null,
 };
 
 export default function BackgroundTable({ backgrounds }: { backgrounds: Background[] }) {
@@ -60,8 +54,6 @@ export default function BackgroundTable({ backgrounds }: { backgrounds: Backgrou
       tag: b.tag ?? BACKGROUND_TAGS[0].value,
       mood: b.mood ?? "",
       description: b.description ?? "",
-      image_path: b.image_path,
-      previousImagePath: b.image_path,
     });
     setError(null);
     setOpen(true);
@@ -75,10 +67,9 @@ export default function BackgroundTable({ backgrounds }: { backgrounds: Backgrou
         tag: form.tag,
         mood: form.mood,
         description: form.description,
-        image_path: form.image_path,
       };
       const res = form.id
-        ? await updateBackground(form.id, input, form.previousImagePath)
+        ? await updateBackground(form.id, input)
         : await createBackground(input);
       if (!res.ok) {
         setError(res.error ?? "保存に失敗しました。");
@@ -92,7 +83,7 @@ export default function BackgroundTable({ backgrounds }: { backgrounds: Backgrou
   function remove(b: Background) {
     if (!confirm(`「${b.name}」を削除しますか？`)) return;
     startTransition(async () => {
-      const res = await deleteBackground(b.id, b.image_path);
+      const res = await deleteBackground(b.id);
       if (!res.ok) {
         alert(res.error ?? "削除に失敗しました。");
         return;
@@ -103,25 +94,6 @@ export default function BackgroundTable({ backgrounds }: { backgrounds: Backgrou
 
   const columns = useMemo<ColumnDef<Background>[]>(
     () => [
-      {
-        header: "画像",
-        accessorKey: "image_path",
-        cell: ({ row }) => {
-          const url = storagePublicUrl(row.original.image_path);
-          return url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={url}
-              alt={row.original.name}
-              className="h-12 w-12 rounded-md object-cover"
-            />
-          ) : (
-            <div className="flex h-12 w-12 items-center justify-center rounded-md bg-stone-100 text-xs text-stone-400">
-              なし
-            </div>
-          );
-        },
-      },
       { header: "名前", accessorKey: "name" },
       {
         header: "タグ",
@@ -205,38 +177,28 @@ export default function BackgroundTable({ backgrounds }: { backgrounds: Backgrou
         title={form.id ? "背景素材を編集" : "背景素材を追加"}
       >
         <div className="space-y-4">
-          <div className="flex gap-4">
-            <ImageUploader
-              folder="backgrounds"
-              initialUrl={storagePublicUrl(form.previousImagePath)}
-              initialPath={form.previousImagePath}
-              onUploaded={(path) => setForm((f) => ({ ...f, image_path: path }))}
+          <div>
+            <label className={labelClass}>名前 *</label>
+            <input
+              className={inputClass}
+              value={form.name}
+              placeholder="アンティークの木製チェスト"
+              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
             />
-            <div className="flex-1 space-y-3">
-              <div>
-                <label className={labelClass}>名前 *</label>
-                <input
-                  className={inputClass}
-                  value={form.name}
-                  placeholder="アンティークの木製チェスト"
-                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                />
-              </div>
-              <div>
-                <label className={labelClass}>タグ</label>
-                <select
-                  className={inputClass}
-                  value={form.tag}
-                  onChange={(e) => setForm((f) => ({ ...f, tag: e.target.value }))}
-                >
-                  {BACKGROUND_TAGS.map((t) => (
-                    <option key={t.value} value={t.value}>
-                      {t.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
+          </div>
+          <div>
+            <label className={labelClass}>タグ</label>
+            <select
+              className={inputClass}
+              value={form.tag}
+              onChange={(e) => setForm((f) => ({ ...f, tag: e.target.value }))}
+            >
+              {BACKGROUND_TAGS.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>
