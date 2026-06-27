@@ -30,7 +30,9 @@ export default function PlanResult({
               <dt className="text-sm font-medium text-stone-500">
                 {SHOOT_PLAN_LABELS[key]}
               </dt>
-              <dd className="text-sm leading-relaxed text-stone-700">{plan[key]}</dd>
+              <dd className="whitespace-pre-line text-sm leading-relaxed text-stone-700">
+                {plan[key]}
+              </dd>
             </div>
           ))}
         </dl>
