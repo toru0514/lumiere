@@ -2,7 +2,7 @@ import "server-only";
 import { GoogleGenAI } from "@google/genai";
 import type { Background, GenerateResult, Product } from "@/types";
 
-const MODEL = "gemini-2.0-flash";
+const MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
 const BRAND_CONTEXT = `Cloud9（クラウドナイン）は愛知の手作り木工アクセサリーブランド。
 ウォルナットやメープルなどの無垢材を活かした、落ち着いた・あたたかい・大人な世界観。
