@@ -30,8 +30,8 @@ export default function SelectableCard({
           {badge ?? "✓"}
         </span>
       )}
-      <p className="truncate pr-6 text-sm font-medium text-stone-800">{name}</p>
-      {subtitle && <p className="mt-0.5 truncate text-xs text-stone-400">{subtitle}</p>}
+      <p className="pr-6 text-sm font-medium leading-snug text-stone-800 break-words">{name}</p>
+      {subtitle && <p className="mt-0.5 text-xs text-stone-400 break-words">{subtitle}</p>}
     </button>
   );
 }

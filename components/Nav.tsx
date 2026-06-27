@@ -7,6 +7,7 @@ const LINKS = [
   { href: "/planner", label: "撮影プランナー", icon: "✦" },
   { href: "/drafts", label: "下書き", icon: "✎" },
   { href: "/settings/products", label: "商品マスター", icon: "◷" },
+  { href: "/settings/materials", label: "木材マスター", icon: "❖" },
   { href: "/settings/backgrounds", label: "背景素材マスター", icon: "❏" },
 ];
 

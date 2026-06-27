@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { generatePlan } from "@/lib/gemini";
-import type { Background, Product } from "@/types";
+import type { Background, Material, Product } from "@/types";
 
 export const maxDuration = 60;
 
@@ -9,6 +9,7 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const productId: string | undefined = body?.productId;
+    const materialId: string | undefined = body?.materialId || undefined;
     const backgroundIds: string[] = Array.isArray(body?.backgroundIds)
       ? body.backgroundIds
       : [];
@@ -29,6 +30,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "商品が見つかりません。" }, { status: 404 });
     }
 
+    let material: Material | null = null;
+    if (materialId) {
+      const { data: m } = await supabase
+        .from("lumiere_materials")
+        .select("*")
+        .eq("id", materialId)
+        .maybeSingle();
+      material = (m as Material) ?? null;
+    }
+
     let backgrounds: Background[] = [];
     if (backgroundIds.length > 0) {
       const { data: bgs } = await supabase
@@ -40,7 +51,7 @@ export async function POST(req: Request) {
       backgrounds = backgroundIds.map((id) => map.get(id)).filter(Boolean) as Background[];
     }
 
-    const result = await generatePlan(product, backgrounds);
+    const result = await generatePlan(product, material, backgrounds);
     return NextResponse.json(result);
   } catch (e) {
     const message = e instanceof Error ? e.message : "生成に失敗しました。";

@@ -47,12 +47,22 @@ export interface Background {
   updated_at: string;
 }
 
+/** 木材マスター（lumiere_materials） */
+export interface Material {
+  id: string;
+  name: string;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export type DraftStatus = "draft" | "posted";
 
 /** 下書き（lumiere_drafts） */
 export interface Draft {
   id: string;
   product_id: string | null;
+  material_id: string | null;
   background_ids: string[] | null;
   shoot_plan: ShootPlan | null;
   caption: string | null;
@@ -65,6 +75,7 @@ export interface Draft {
 /** 一覧用に商品情報を join した下書き */
 export interface DraftWithProduct extends Draft {
   product: Product | null;
+  material: Material | null;
 }
 
 /** Gemini 生成 API のレスポンス（プラン + 投稿文 + ハッシュタグ） */

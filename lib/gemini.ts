@@ -1,6 +1,6 @@
 import "server-only";
 import { GoogleGenAI } from "@google/genai";
-import type { Background, GenerateResult, Product } from "@/types";
+import type { Background, GenerateResult, Material, Product } from "@/types";
 
 const MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
@@ -36,15 +36,29 @@ function backgroundBlock(backgrounds: Background[]): string {
     .join("\n\n");
 }
 
-export function buildPrompt(product: Product, backgrounds: Background[]): string {
+function materialBlock(material: Material | null): string {
+  if (!material) return "（指定なし）";
+  return [`- 木材: ${material.name}`, material.description ? `- 特徴: ${material.description}` : null]
+    .filter(Boolean)
+    .join("\n");
+}
+
+export function buildPrompt(
+  product: Product,
+  material: Material | null,
+  backgrounds: Background[],
+): string {
   return `あなたはハンドメイド木工アクセサリーブランドのSNS撮影ディレクター兼コピーライターです。
-以下の商品と背景素材から、Instagram投稿用の撮影プランと投稿文・ハッシュタグを作成してください。
+以下の商品・木材・背景素材から、Instagram投稿用の撮影プランと投稿文・ハッシュタグを作成してください。
 
 # ブランド前提
 ${BRAND_CONTEXT}
 
 # 商品
 ${productBlock(product)}
+
+# 木材
+${materialBlock(material)}
 
 # 背景素材
 ${backgroundBlock(backgrounds)}
@@ -58,7 +72,7 @@ ${backgroundBlock(backgrounds)}
 - props_arrangement: 小物・背景素材の配置
 - mood: 仕上がりの雰囲気（短く）
 - tips: 撮影のコツ（反射・奥行き・ピントなど）
-- caption: 投稿文。日本語、120〜200字程度、絵文字は控えめ、Cloud9の世界観に合うトーン
+- caption: 投稿文。日本語、120〜200字程度、絵文字は控えめ、Cloud9の世界観に合うトーン。木材が指定されていれば、その特徴（色味・木目・質感）を投稿文に自然に織り込む
 - hashtags: ハッシュタグ。10〜15個。木工・ハンドメイド・アクセサリー・愛知などのジャンルを混在。各要素は先頭の#を付けずタグ文字列のみ
 
 # 出力フォーマット（厳守）
@@ -129,6 +143,7 @@ function normalize(obj: unknown): GenerateResult {
 
 export async function generatePlan(
   product: Product,
+  material: Material | null,
   backgrounds: Background[],
 ): Promise<GenerateResult> {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -137,7 +152,7 @@ export async function generatePlan(
   }
 
   const ai = new GoogleGenAI({ apiKey });
-  const prompt = buildPrompt(product, backgrounds);
+  const prompt = buildPrompt(product, material, backgrounds);
 
   const response = await ai.models.generateContent({
     model: MODEL,

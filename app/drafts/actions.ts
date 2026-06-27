@@ -12,6 +12,7 @@ export interface ActionResult {
 
 export interface SaveDraftInput {
   product_id: string;
+  material_id: string | null;
   background_ids: string[];
   shoot_plan: ShootPlan;
   caption: string;
@@ -25,6 +26,7 @@ export async function createDraft(input: SaveDraftInput): Promise<ActionResult> 
     .from("lumiere_drafts")
     .insert({
       product_id: input.product_id,
+      material_id: input.material_id,
       background_ids: input.background_ids,
       shoot_plan: input.shoot_plan,
       caption: input.caption,

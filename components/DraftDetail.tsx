@@ -96,6 +96,9 @@ export default function DraftDetail({ draft, backgrounds }: Props) {
           </h2>
           <StatusBadge status={status} />
         </div>
+        {draft.material && (
+          <p className="mt-1 text-xs text-stone-500">木材：{draft.material.name}</p>
+        )}
         {backgrounds.length > 0 && (
           <p className="mt-1 text-xs text-stone-500">
             背景：{backgrounds.map((b) => b.name).join("、")}

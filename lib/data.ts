@@ -1,6 +1,16 @@
 import "server-only";
 import { createServiceClient } from "@/lib/supabase/server";
-import type { Background, Draft, DraftWithProduct, Product } from "@/types";
+import type { Background, Draft, DraftWithProduct, Material, Product } from "@/types";
+
+export async function getMaterials(): Promise<Material[]> {
+  const supabase = createServiceClient();
+  const { data, error } = await supabase
+    .from("lumiere_materials")
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as Material[];
+}
 
 export async function getProducts(): Promise<Product[]> {
   const supabase = createServiceClient();
@@ -41,9 +51,20 @@ export async function getDrafts(): Promise<DraftWithProduct[]> {
     for (const p of (products ?? []) as Product[]) productMap.set(p.id, p);
   }
 
+  const materialIds = [...new Set(drafts.map((d) => d.material_id).filter(Boolean))] as string[];
+  const materialMap = new Map<string, Material>();
+  if (materialIds.length > 0) {
+    const { data: materials } = await supabase
+      .from("lumiere_materials")
+      .select("*")
+      .in("id", materialIds);
+    for (const m of (materials ?? []) as Material[]) materialMap.set(m.id, m);
+  }
+
   return drafts.map((d) => ({
     ...d,
     product: d.product_id ? productMap.get(d.product_id) ?? null : null,
+    material: d.material_id ? materialMap.get(d.material_id) ?? null : null,
   }));
 }
 
@@ -67,7 +88,17 @@ export async function getDraft(id: string): Promise<DraftWithProduct | null> {
       .maybeSingle();
     product = (p as Product) ?? null;
   }
-  return { ...draft, product };
+
+  let material: Material | null = null;
+  if (draft.material_id) {
+    const { data: m } = await supabase
+      .from("lumiere_materials")
+      .select("*")
+      .eq("id", draft.material_id)
+      .maybeSingle();
+    material = (m as Material) ?? null;
+  }
+  return { ...draft, product, material };
 }
 
 /** 下書き詳細で背景素材名を表示するための取得。 */
