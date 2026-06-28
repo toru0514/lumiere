@@ -4,8 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const LINKS = [
+  { href: "/", label: "投稿一覧", icon: "▤" },
   { href: "/planner", label: "撮影プランナー", icon: "✦" },
-  { href: "/drafts", label: "下書き", icon: "✎" },
   { href: "/settings/products", label: "商品マスター", icon: "◷" },
   { href: "/settings/materials", label: "木材マスター", icon: "❖" },
   { href: "/settings/backgrounds", label: "背景素材マスター", icon: "❏" },
@@ -17,7 +17,10 @@ export default function Nav() {
   return (
     <nav className="flex flex-col gap-1">
       {LINKS.map((link) => {
-        const active = pathname === link.href || pathname.startsWith(link.href + "/");
+        const active =
+          link.href === "/"
+            ? pathname === "/" || pathname.startsWith("/drafts")
+            : pathname === link.href || pathname.startsWith(link.href + "/");
         return (
           <Link
             key={link.href}

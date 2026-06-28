@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -10,12 +10,9 @@ import {
   type GenerateResult,
   type Material,
   type Product,
-  type ShootPlan,
 } from "@/types";
-import { hashtagsToText, textToHashtags } from "@/lib/format";
 import { createDraft } from "@/app/drafts/actions";
 import SelectableCard from "@/components/SelectableCard";
-import PlanResult from "@/components/PlanResult";
 import EmptyState from "@/components/EmptyState";
 import { Button } from "@/components/ui";
 
@@ -33,14 +30,6 @@ export default function Planner({ products, materials, backgrounds }: Props) {
 
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
-  const [result, setResult] = useState<GenerateResult | null>(null);
-
-  const [caption, setCaption] = useState("");
-  const [hashtagsText, setHashtagsText] = useState("");
-
-  const [saved, setSaved] = useState(false);
-  const [saving, startSaving] = useTransition();
-  const [saveError, setSaveError] = useState<string | null>(null);
 
   function toggleBg(id: string) {
     setBgIds((prev) =>
@@ -48,23 +37,10 @@ export default function Planner({ products, materials, backgrounds }: Props) {
     );
   }
 
-  const plan: ShootPlan | null = useMemo(() => {
-    if (!result) return null;
-    return {
-      composition: result.composition,
-      lighting: result.lighting,
-      props_arrangement: result.props_arrangement,
-      mood: result.mood,
-      tips: result.tips,
-    };
-  }, [result]);
-
   async function generate() {
     if (!productId) return;
     setGenerating(true);
     setGenError(null);
-    setSaved(false);
-    setSaveError(null);
     try {
       const res = await fetch("/api/generate", {
         method: "POST",
@@ -74,36 +50,30 @@ export default function Planner({ products, materials, backgrounds }: Props) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "生成に失敗しました。");
       const gen = data as GenerateResult;
-      setResult(gen);
-      setCaption(gen.caption);
-      setHashtagsText(hashtagsToText(gen.hashtags));
-    } catch (e) {
-      setGenError(e instanceof Error ? e.message : "生成に失敗しました。");
-      setResult(null);
-    } finally {
-      setGenerating(false);
-    }
-  }
 
-  function save() {
-    if (!productId || !plan) return;
-    setSaveError(null);
-    startSaving(async () => {
-      const res = await createDraft({
+      // 生成のたびに未投稿として一覧へ追加する
+      const saved = await createDraft({
         product_id: productId,
         material_id: materialId,
         background_ids: bgIds,
-        shoot_plan: plan,
-        caption,
-        hashtags: textToHashtags(hashtagsText),
+        shoot_plan: {
+          composition: gen.composition,
+          lighting: gen.lighting,
+          props_arrangement: gen.props_arrangement,
+          mood: gen.mood,
+          tips: gen.tips,
+        },
+        caption: gen.caption,
+        hashtags: gen.hashtags,
       });
-      if (!res.ok) {
-        setSaveError(res.error ?? "保存に失敗しました。");
-        return;
+      if (!saved.ok || !saved.id) {
+        throw new Error(saved.error ?? "保存に失敗しました。");
       }
-      setSaved(true);
-      router.refresh();
-    });
+      router.push(`/drafts/${saved.id}`);
+    } catch (e) {
+      setGenError(e instanceof Error ? e.message : "生成に失敗しました。");
+      setGenerating(false);
+    }
   }
 
   if (products.length === 0) {
@@ -211,7 +181,7 @@ export default function Planner({ products, materials, backgrounds }: Props) {
         )}
       </section>
 
-      {/* STEP 3 生成 */}
+      {/* 生成（未投稿として一覧に追加） */}
       <section className="border-t border-stone-200 pt-6">
         <div className="flex items-center gap-3">
           <Button onClick={generate} disabled={!productId || generating}>
@@ -221,49 +191,16 @@ export default function Planner({ products, materials, backgrounds }: Props) {
             <span className="text-sm text-stone-400">商品を選択してください</span>
           )}
         </div>
+        <p className="mt-2 text-xs text-stone-400">
+          生成すると未投稿として一覧に追加され、投稿文を編集できます。
+        </p>
         {genError && <p className="mt-3 text-sm text-red-600">{genError}</p>}
       </section>
 
-      {/* 生成結果 */}
       {generating && (
         <div className="rounded-xl border border-stone-200 bg-white p-8 text-center text-sm text-stone-400">
           Gemini が撮影プランと投稿文を作成しています…
         </div>
-      )}
-
-      {plan && !generating && (
-        <section className="space-y-4">
-          <PlanResult
-            plan={plan}
-            caption={caption}
-            hashtagsText={hashtagsText}
-            onCaptionChange={(v) => {
-              setCaption(v);
-              setSaved(false);
-            }}
-            onHashtagsChange={(v) => {
-              setHashtagsText(v);
-              setSaved(false);
-            }}
-          />
-          <div className="flex items-center gap-3">
-            <Button onClick={save} disabled={saving}>
-              {saving ? "保存中…" : "下書き保存"}
-            </Button>
-            <Button variant="secondary" onClick={generate} disabled={generating}>
-              生成し直す
-            </Button>
-            {saved && (
-              <span className="text-sm text-green-600">
-                保存しました。
-                <Link href="/drafts" className="ml-1 underline">
-                  下書き一覧へ
-                </Link>
-              </span>
-            )}
-          </div>
-          {saveError && <p className="text-sm text-red-600">{saveError}</p>}
-        </section>
       )}
     </div>
   );

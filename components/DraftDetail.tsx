@@ -165,7 +165,7 @@ export default function DraftDetail({ draft, backgrounds }: Props) {
           {pending ? "保存中…" : dirty ? "変更を保存" : "保存済み"}
         </Button>
         <Button variant="secondary" onClick={toggleStatus} disabled={pending}>
-          {status === "posted" ? "下書きに戻す" : "投稿済みにする"}
+          {status === "posted" ? "未投稿に戻す" : "投稿済みにする"}
         </Button>
         <div className="ml-auto">
           <Button variant="danger" onClick={remove} disabled={pending}>

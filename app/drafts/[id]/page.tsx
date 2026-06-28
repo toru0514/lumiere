@@ -20,11 +20,11 @@ export default async function DraftDetailPage({
   return (
     <>
       <div className="mb-2">
-        <Link href="/drafts" className="text-sm text-amber-600 hover:underline">
-          ← 下書き一覧へ
+        <Link href="/" className="text-sm text-amber-600 hover:underline">
+          ← 投稿一覧へ
         </Link>
       </div>
-      <PageHeader title="下書き詳細" />
+      <PageHeader title="投稿詳細" />
       <DraftDetail draft={draft} backgrounds={backgrounds} />
     </>
   );

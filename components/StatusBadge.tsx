@@ -8,7 +8,7 @@ export default function StatusBadge({ status }: { status: DraftStatus }) {
         posted ? "bg-green-100 text-green-700" : "bg-stone-100 text-stone-500"
       }`}
     >
-      {posted ? "投稿済み" : "下書き"}
+      {posted ? "投稿済み" : "未投稿"}
     </span>
   );
 }
