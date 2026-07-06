@@ -40,6 +40,37 @@ export async function createDraft(input: SaveDraftInput): Promise<ActionResult> 
   return { ok: true, id: data.id as string };
 }
 
+export interface SaveCaptionDraftInput {
+  caption: string;
+  hashtags: string[];
+}
+
+/**
+ * 写真から生成した投稿文を下書きとして保存する。
+ * 商品・木材・撮影プランは紐づかない（product_id は null）。
+ */
+export async function createCaptionDraft(
+  input: SaveCaptionDraftInput,
+): Promise<ActionResult> {
+  const supabase = createServiceClient();
+  const { data, error } = await supabase
+    .from("lumiere_drafts")
+    .insert({
+      product_id: null,
+      material_id: null,
+      background_ids: [],
+      shoot_plan: null,
+      caption: input.caption,
+      hashtags: input.hashtags,
+      status: "draft",
+    })
+    .select("id")
+    .single();
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/drafts");
+  return { ok: true, id: data.id as string };
+}
+
 export async function updateDraftContent(
   id: string,
   caption: string,

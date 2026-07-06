@@ -1,6 +1,12 @@
 import "server-only";
 import { GoogleGenAI } from "@google/genai";
-import type { Background, GenerateResult, Material, Product } from "@/types";
+import type {
+  Background,
+  CaptionResult,
+  GenerateResult,
+  Material,
+  Product,
+} from "@/types";
 
 const MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
@@ -168,4 +174,96 @@ export async function generatePlan(
     throw new Error("Gemini から空のレスポンスが返りました。");
   }
   return parseGenerateResult(text);
+}
+
+// =========================================================
+// 写真から投稿文を生成（画像入力）
+// =========================================================
+
+/** Gemini に渡す画像（base64）。 */
+export interface CaptionImageInput {
+  mimeType: string;
+  data: string;
+}
+
+export function buildCaptionPrompt(note?: string): string {
+  const noteBlock = note?.trim()
+    ? `\n# 補足（ユーザーからのメモ・優先して反映）\n${note.trim()}\n`
+    : "";
+  return `あなたはハンドメイド木工アクセサリーブランドのSNSコピーライターです。
+添付された写真（1枚以上・同じ投稿に使う想定）を見て、Instagram投稿用の投稿文とハッシュタグを作成してください。
+
+# ブランド前提
+${BRAND_CONTEXT}
+${noteBlock}
+# 進め方
+- まず写真から読み取れる要素（被写体・素材感・色味・光や陰影・雰囲気・小物や背景）を観察する。
+- その観察に基づいて投稿文を書く。写真に写っていない事実（素材名・価格など）を断定しない。不確かな点はぼかすか触れない。
+
+# 出力要件
+- photo_summary: 写真から読み取った要素の要約。日本語で1〜2文。生成の根拠として表示するため簡潔に。
+- caption: 投稿文。日本語、120〜200字程度、絵文字は控えめ、Cloud9の世界観に合う落ち着いたトーン。写真の質感・光を自然に描写する。
+- hashtags: ハッシュタグ。10〜15個。木工・ハンドメイド・アクセサリー・愛知などのジャンルを混在。各要素は先頭の#を付けずタグ文字列のみ。
+
+# 出力フォーマット（厳守）
+必ず次のJSON構造のみで出力すること。前置き・説明・Markdownのコードフェンスは一切付けない。
+{
+  "photo_summary": "string",
+  "caption": "string",
+  "hashtags": ["string", ...]
+}`;
+}
+
+export function parseCaptionResult(raw: string): CaptionResult {
+  const result = parseGenerateResult(raw);
+  const o = (() => {
+    try {
+      return JSON.parse(raw) as Record<string, unknown>;
+    } catch {
+      return {};
+    }
+  })();
+  const summary =
+    typeof o.photo_summary === "string" ? o.photo_summary : "";
+  return {
+    photo_summary: summary,
+    caption: result.caption,
+    hashtags: result.hashtags,
+  };
+}
+
+export async function generateCaptionFromImages(
+  images: CaptionImageInput[],
+  note?: string,
+): Promise<CaptionResult> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY が未設定です。");
+  }
+  if (images.length === 0) {
+    throw new Error("写真が添付されていません。");
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
+  const prompt = buildCaptionPrompt(note);
+
+  const response = await ai.models.generateContent({
+    model: MODEL,
+    contents: [
+      { text: prompt },
+      ...images.map((img) => ({
+        inlineData: { mimeType: img.mimeType, data: img.data },
+      })),
+    ],
+    config: {
+      responseMimeType: "application/json",
+      temperature: 0.9,
+    },
+  });
+
+  const text = response.text ?? "";
+  if (!text) {
+    throw new Error("Gemini から空のレスポンスが返りました。");
+  }
+  return parseCaptionResult(text);
 }

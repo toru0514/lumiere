@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 const LINKS = [
   { href: "/", label: "投稿一覧", icon: "▤" },
   { href: "/planner", label: "撮影プランナー", icon: "✦" },
+  { href: "/caption", label: "写真から投稿文", icon: "📷" },
   { href: "/settings/products", label: "商品マスター", icon: "◷" },
   { href: "/settings/materials", label: "木材マスター", icon: "❖" },
   { href: "/settings/backgrounds", label: "背景素材マスター", icon: "❏" },

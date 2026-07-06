@@ -84,6 +84,14 @@ export interface GenerateResult extends ShootPlan {
   hashtags: string[];
 }
 
+/** 写真から投稿文を生成した結果（Gemini 画像入力・/api/caption のレスポンス） */
+export interface CaptionResult {
+  /** 写真から読み取った要素（被写体・雰囲気・光）。生成の根拠として表示する */
+  photo_summary: string;
+  caption: string;
+  hashtags: string[];
+}
+
 /** 入力フォームで使う商品カテゴリ候補 */
 export const PRODUCT_CATEGORIES = [
   { value: "bangle", label: "バングル" },
