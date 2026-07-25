@@ -5,10 +5,21 @@ import { useRouter } from "next/navigation";
 import {
   SHOOT_PLAN_KEYS,
   SHOOT_PLAN_LABELS,
+  formatLabel,
+  goalLabel,
+  themeLabel,
   type Background,
   type DraftWithProduct,
 } from "@/types";
-import { buildCaption, formatDate, hashtagsToText, textToHashtags } from "@/lib/format";
+import { findPlannedPost } from "@/lib/postPlan";
+import {
+  buildCaption,
+  buildCarouselText,
+  buildReelText,
+  formatDate,
+  hashtagsToText,
+  textToHashtags,
+} from "@/lib/format";
 import {
   deleteDraft,
   setDraftStatus,
@@ -40,6 +51,12 @@ export default function DraftDetail({ draft, backgrounds }: Props) {
   );
 
   const plan = draft.shoot_plan;
+  const planned = findPlannedPost(draft.plan_ref);
+  const designTags = [
+    themeLabel(draft.theme),
+    goalLabel(draft.goal),
+    formatLabel(draft.format),
+  ].filter(Boolean);
 
   function save() {
     setError(null);
@@ -104,8 +121,99 @@ export default function DraftDetail({ draft, backgrounds }: Props) {
             背景：{backgrounds.map((b) => b.name).join("、")}
           </p>
         )}
+        {designTags.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {designTags.map((t) => (
+              <span
+                key={t}
+                className="rounded-full bg-stone-100 px-2 py-0.5 text-xs text-stone-600"
+              >
+                {t}
+              </span>
+            ))}
+            {planned && (
+              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700">
+                {planned.label}
+              </span>
+            )}
+          </div>
+        )}
+        {planned && (
+          <p className="mt-2 text-xs text-stone-500">
+            この投稿で見るKPI：{planned.kpi}
+          </p>
+        )}
         <p className="mt-1 text-xs text-stone-400">{formatDate(draft.created_at)} 作成</p>
       </section>
+
+      {/* カルーセル構成 */}
+      {draft.carousel && draft.carousel.length > 0 && (
+        <section className="rounded-xl border border-stone-200 bg-white p-5">
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-amber-700">
+              カルーセル構成（{draft.carousel.length}枚）
+            </h3>
+            <CopyButton
+              text={buildCarouselText(draft.carousel)}
+              label="構成をコピー"
+              variant="secondary"
+            />
+          </div>
+          <ol className="space-y-3">
+            {draft.carousel.map((slide, i) => (
+              <li key={i} className="grid grid-cols-[2rem_1fr] gap-3">
+                <span className="text-sm font-medium text-stone-400">{i + 1}</span>
+                <div>
+                  <p className="text-sm font-medium text-stone-800">{slide.text}</p>
+                  <p className="mt-0.5 text-xs leading-relaxed text-stone-500">
+                    {slide.visual}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
+
+      {/* リール台本 */}
+      {draft.reel && (
+        <section className="rounded-xl border border-stone-200 bg-white p-5">
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-amber-700">リール台本</h3>
+            <CopyButton
+              text={buildReelText(draft.reel)}
+              label="台本をコピー"
+              variant="secondary"
+            />
+          </div>
+          <dl className="space-y-3">
+            <div className="grid grid-cols-[6rem_1fr] gap-3">
+              <dt className="text-sm font-medium text-stone-500">0-3秒フック</dt>
+              <dd className="text-sm leading-relaxed text-stone-700">{draft.reel.hook}</dd>
+            </div>
+            <div className="grid grid-cols-[6rem_1fr] gap-3">
+              <dt className="text-sm font-medium text-stone-500">カット</dt>
+              <dd className="text-sm leading-relaxed text-stone-700">
+                <ol className="list-decimal space-y-1 pl-4">
+                  {draft.reel.cuts.map((c, i) => (
+                    <li key={i}>{c}</li>
+                  ))}
+                </ol>
+              </dd>
+            </div>
+            <div className="grid grid-cols-[6rem_1fr] gap-3">
+              <dt className="text-sm font-medium text-stone-500">テキスト</dt>
+              <dd className="text-sm leading-relaxed text-stone-700">
+                {draft.reel.overlay}
+              </dd>
+            </div>
+            <div className="grid grid-cols-[6rem_1fr] gap-3">
+              <dt className="text-sm font-medium text-stone-500">音・尺</dt>
+              <dd className="text-sm leading-relaxed text-stone-700">{draft.reel.audio}</dd>
+            </div>
+          </dl>
+        </section>
+      )}
 
       {/* 撮影プラン */}
       {plan && (

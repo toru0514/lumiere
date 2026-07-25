@@ -1,6 +1,6 @@
 # lumiere — 撮影プラン＆投稿文生成アプリ 設計ドキュメント
 
-> Cloud9（木材工房Cloud9）のInstagram運用支援アプリ。
+> 木材工房cloud9（cloud9woodwork）のInstagram運用支援アプリ。
 > 商品 × 背景素材の組み合わせから「どう撮るか（構図・ライティング）」を提案し、
 > あわせて投稿文・ハッシュタグを生成。下書きとしてアプリ内に保存・コピーできる。
 
@@ -8,7 +8,7 @@
 
 ## 1. 目的・背景
 
-- Cloud9のInstagramは更新が滞りがちで、訪問者数が少ない。
+- 木材工房cloud9のInstagramは更新が滞りがちで、訪問者数が少ない。
 - 在庫は十分にあり、ボトルネックは「発信」側。
 - カメラ（Nikon Zf 等）を導入したため、撮影の質を上げて発信を継続したい。
 - 自動いいね/フォロー等の規約違反手法は採らない。投稿の質・発見性で勝負する方針。
@@ -69,13 +69,17 @@ create table lumiere_products (
   id uuid primary key default gen_random_uuid(),
   name text not null,                    -- 例: 「ウォルナットのバングル」
   category text not null,                -- 'bangle' | 'ring' | 'earcuff' など
-  material text,                         -- 例: 「ウォルナット」「真鍮」
+  material text,                         -- 例: 「カリン」「パープルハート」
   description text,                       -- 商品の特徴メモ（生成プロンプトに使う）
   image_path text,                       -- Supabase Storage のパス
+  price_min integer,                     -- 最低価格（税込・円）。投稿文では「¥4,000〜（税込）」の形で使う
+  metal text default 'unknown',          -- 'none' | 'resin_option' | 'metal' | 'unknown'
+  size_range text,                       -- 例: 「3〜25号」
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
 ```
+> `metal` が `unknown` の商品については、投稿文でその商品の金属使用有無に触れない（表現ルール上、断定できるのは明示された商品だけ）。
 
 ### 4.2 backgrounds（背景素材マスター）
 ```sql
@@ -101,6 +105,14 @@ create table lumiere_drafts (
   caption text,                          -- 投稿文（生成結果・編集可能）
   hashtags text[],                       -- ハッシュタグ（生成結果・編集可能）
   status text default 'draft',           -- 'draft' | 'posted'
+  theme text,                            -- 投稿テーマ（process | wood_guide | metal_allergy | kikonshiki | product | care）
+  goal text,                             -- 主目的（save | share | profile | reach）＝KPIと1対1
+  format text,                           -- 形式（feed | carousel | reel）
+  hook text,                             -- 投稿文1行目（フック）
+  cta text,                              -- 公式CTA集から選ばれた1文
+  carousel jsonb,                        -- [{visual, text}, ...] カルーセル各スライドの設計
+  reel jsonb,                            -- {hook, cuts[], overlay, audio} リール台本
+  plan_ref text,                         -- 投稿計画の枠（例: post-02, pinned-01）
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
@@ -173,31 +185,35 @@ create table lumiere_drafts (
 - モデル：`gemini-2.0-flash`
 
 ### 7.2 入力に渡す情報
-- 選択された商品：name / category / material / description
+- 投稿設計：テーマ / 主目的 / 形式（＋任意で投稿計画の枠）
+- 選択された商品：name / category / material / description / price_min / metal / size_range
+- 選択された木材：name / description
 - 選択された背景素材（複数可）：name / tag / mood / description
-- ブランド前提：Cloud9＝手作り木工アクセサリー、落ち着いた・あたたかい・大人な世界観
+- ブランド事実・表現ルール・CTA集（`lib/brand.ts`）
 
 ### 7.3 出力フォーマット
 - **JSONのみ**を返すようプロンプトで厳格に指定（前置き・Markdownのコードフェンス禁止）。
 - サーバー側でパースし、失敗時はフェンス除去のうえ再パース。
+- 形式に応じて `carousel`（各スライドの visual / text）または `reel`（台本）を含む。
 
-### 7.4 プロンプト方針（要約）
-```
-あなたはハンドメイド木工アクセサリーブランドのSNS撮影ディレクター兼コピーライターです。
-以下の商品と背景素材から、Instagram投稿用の撮影プランと投稿文・ハッシュタグを作成してください。
+### 7.4 ブランドルールの単一ソース（`lib/brand.ts`）
 
-# 商品
-{商品情報}
+Instagram運用レポート（`~/Desktop/cloud9-woodwork/reports`）で決めた運用ルールを、生成が参照する唯一の場所として集約している。運用方針が変わったらこのファイルだけを直す。
 
-# 背景素材
-{背景素材情報}
+| 定数 | 内容 |
+|---|---|
+| `BRAND_CONTEXT` / `PRODUCT_SPEC` | ブランド事実・商品共通仕様（サイズ、付属品、仕上げ） |
+| `PRICE_TABLE` / `PRICE_GUIDE` | カテゴリ別の最低価格と、木材別の実売価格（Creema実査値・2026-07-25） |
+| `UNCONFIRMED_FACTS` | 書けない事項（ラッピング不可・修理可否は未確認・送料は商品差があるため触れない） |
+| `EXPRESSION_RULES` | 金属アレルギー表現、個体差表現（「一点もの」禁止）、価格表現 |
+| `TONE_RULES` / `HASHTAG_RULES` | 文体、ブランド名表記、ハッシュタグ方針（3〜5個・地域名/販路名なし） |
+| `THEME_GUIDES` / `GOAL_RULES` | テーマ別のフック・構成、主目的別に本文へ入れてよい情報 |
+| `CTA_LIBRARY` | 公式CTA集。生成AIに作文させず、目的別の定型から選ばせる |
+| `findViolations()` | 生成後の検査。違反時は指摘つきで1度だけ書き直させ、それでも残れば警告を表示 |
 
-# 出力要件
-- 構図、ライティング（商品を引き立てる照明・周囲を落とす指示を含む）、小物配置、雰囲気、撮影Tipsを提案
-- 投稿文は日本語、150〜300字程度、絵文字は控えめ、Cloud9の世界観に合うトーン
-- ハッシュタグは10〜15個。木工・ハンドメイド・アクセサリー・愛知などのジャンルを混在
-- 必ず指定のJSON構造のみで出力（前置き・コードフェンスなし）
-```
+### 7.5 投稿計画との接続（`lib/postPlan.ts`）
+
+1ヶ月目投稿計画12本と固定投稿3本を定義。プランナーで枠を選ぶと、テーマ・主目的・形式が計画書の設定で埋まり、計画書のフック案とKPIが生成プロンプトに渡る。下書きには `plan_ref` として記録され、詳細画面に「この投稿で見るKPI」が表示される。
 
 ---
 
@@ -283,5 +299,5 @@ lumiere/
 
 - 撮影プランに合わせた「参考構図のサンプル画像」をGeminiの説明から自動でラフ生成。
 - 投稿後のエンゲージメントを記録し、効いたハッシュタグを学習（few-shot化）。
-- minne / Creema の商品ページ向けの文章生成も同じ商品マスターから流用。
+- Creema / minne の商品ページ向けの文章生成も同じ商品マスターから流用。
 - ビジネスアカウントへ移行した際の Instagram Graph API 連携（自動下書き）。

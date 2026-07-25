@@ -8,6 +8,10 @@ export interface ProductInput {
   category: string;
   material: string | null;
   description: string | null;
+  /** 最低価格（税込・円）。空なら null＝カテゴリ既定の価格を使う */
+  price_min: number | null;
+  metal: string | null;
+  size_range: string | null;
 }
 
 export interface ActionResult {
@@ -15,16 +19,27 @@ export interface ActionResult {
   error?: string;
 }
 
+const METAL_VALUES = ["none", "resin_option", "metal", "unknown"];
+
 function parseInput(input: ProductInput): ProductInput | string {
   const name = input.name?.trim();
   const category = input.category?.trim();
   if (!name) return "商品名は必須です。";
   if (!category) return "カテゴリは必須です。";
+
+  const price = input.price_min;
+  if (price != null && (!Number.isFinite(price) || price < 0)) {
+    return "価格は0以上の数値で入力してください。";
+  }
+
   return {
     name,
     category,
     material: input.material?.trim() || null,
     description: input.description?.trim() || null,
+    price_min: price != null ? Math.round(price) : null,
+    metal: METAL_VALUES.includes(input.metal ?? "") ? input.metal : "unknown",
+    size_range: input.size_range?.trim() || null,
   };
 }
 

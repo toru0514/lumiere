@@ -2,7 +2,13 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type { CaptionResult } from "@/types";
+import {
+  POST_GOALS,
+  POST_THEMES,
+  type CaptionResult,
+  type PostGoal,
+  type PostTheme,
+} from "@/types";
 import { prepareImage, type PreparedImage } from "@/lib/image";
 import { buildCaption, hashtagsToText, textToHashtags } from "@/lib/format";
 import { createCaptionDraft } from "@/app/drafts/actions";
@@ -26,13 +32,17 @@ export default function CaptionFromPhoto() {
 
   const [images, setImages] = useState<PreparedImage[]>([]);
   const [note, setNote] = useState("");
+  const [theme, setTheme] = useState<PostTheme>("product");
+  const [goal, setGoal] = useState<PostGoal>("profile");
   const [preparing, setPreparing] = useState(false);
   const [dragOver, setDragOver] = useState(false);
 
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
 
-  const [result, setResult] = useState<CaptionResult | null>(null);
+  const [result, setResult] = useState<
+    (CaptionResult & { warnings?: string[] }) | null
+  >(null);
   const [caption, setCaption] = useState("");
   const [hashtagsText, setHashtagsText] = useState("");
 
@@ -79,11 +89,13 @@ export default function CaptionFromPhoto() {
         body: JSON.stringify({
           images: images.map((i) => ({ mimeType: i.mimeType, data: i.data })),
           note,
+          theme,
+          goal,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "生成に失敗しました。");
-      const gen = data as CaptionResult;
+      const gen = data as CaptionResult & { warnings?: string[] };
       setResult(gen);
       setCaption(gen.caption);
       setHashtagsText(hashtagsToText(gen.hashtags));
@@ -100,6 +112,10 @@ export default function CaptionFromPhoto() {
       const res = await createCaptionDraft({
         caption,
         hashtags: textToHashtags(hashtagsText),
+        theme,
+        goal,
+        hook: result?.hook ?? "",
+        cta: result?.cta ?? "",
       });
       if (!res.ok || !res.id) {
         setSaveError(res.error ?? "保存に失敗しました。");
@@ -191,10 +207,48 @@ export default function CaptionFromPhoto() {
         )}
       </section>
 
-      {/* STEP 2 補足メモ */}
+      {/* STEP 2 投稿の狙い */}
       <section>
         <h2 className="mb-3 text-sm font-semibold text-stone-700">
           <StepBadge n={2} />
+          投稿の狙いを決める
+        </h2>
+        <div className="grid gap-4 rounded-xl border border-stone-200 bg-white p-4 sm:grid-cols-2">
+          <div>
+            <label className={labelClass}>テーマ</label>
+            <select
+              className={inputClass}
+              value={theme}
+              onChange={(e) => setTheme(e.target.value as PostTheme)}
+            >
+              {POST_THEMES.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className={labelClass}>主目的（CTAが決まります）</label>
+            <select
+              className={inputClass}
+              value={goal}
+              onChange={(e) => setGoal(e.target.value as PostGoal)}
+            >
+              {POST_GOALS.map((g) => (
+                <option key={g.value} value={g.value}>
+                  {g.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </section>
+
+      {/* STEP 3 補足メモ */}
+      <section>
+        <h2 className="mb-3 text-sm font-semibold text-stone-700">
+          <StepBadge n={3} />
           補足メモ（任意）
         </h2>
         <textarea
@@ -234,6 +288,19 @@ export default function CaptionFromPhoto() {
       {/* 結果 */}
       {result && (
         <section className="space-y-5 border-t border-stone-200 pt-6">
+          {result.warnings && result.warnings.length > 0 && (
+            <div className="rounded-xl border border-red-200 bg-red-50 p-4">
+              <h3 className="mb-1 text-xs font-semibold text-red-700">
+                表現ルールに反する箇所が残っています（投稿前に直してください）
+              </h3>
+              <ul className="list-disc space-y-1 pl-5 text-sm text-red-700">
+                {result.warnings.map((w, i) => (
+                  <li key={i}>{w}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {result.photo_summary && (
             <div className="rounded-xl border border-amber-100 bg-amber-50/60 p-4">
               <h3 className="mb-1 text-xs font-semibold text-amber-700">
