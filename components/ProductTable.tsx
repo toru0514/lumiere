@@ -8,7 +8,14 @@ import {
   useReactTable,
   type ColumnDef,
 } from "@tanstack/react-table";
-import { PRODUCT_CATEGORIES, categoryLabel, type Product } from "@/types";
+import {
+  METAL_OPTIONS,
+  PRODUCT_CATEGORIES,
+  categoryLabel,
+  metalLabel,
+  type Product,
+} from "@/types";
+import { PRICE_TABLE } from "@/lib/brand";
 import { createProduct, deleteProduct, updateProduct } from "@/app/settings/products/actions";
 import Modal from "@/components/Modal";
 import EmptyState from "@/components/EmptyState";
@@ -20,6 +27,9 @@ interface FormState {
   category: string;
   material: string;
   description: string;
+  priceMin: string;
+  metal: string;
+  sizeRange: string;
 }
 
 const EMPTY: FormState = {
@@ -28,6 +38,9 @@ const EMPTY: FormState = {
   category: PRODUCT_CATEGORIES[0].value,
   material: "",
   description: "",
+  priceMin: "",
+  metal: "unknown",
+  sizeRange: "",
 };
 
 export default function ProductTable({ products }: { products: Product[] }) {
@@ -50,6 +63,9 @@ export default function ProductTable({ products }: { products: Product[] }) {
       category: p.category,
       material: p.material ?? "",
       description: p.description ?? "",
+      priceMin: p.price_min != null ? String(p.price_min) : "",
+      metal: p.metal ?? "unknown",
+      sizeRange: p.size_range ?? "",
     });
     setError(null);
     setOpen(true);
@@ -63,6 +79,9 @@ export default function ProductTable({ products }: { products: Product[] }) {
         category: form.category,
         material: form.material,
         description: form.description,
+        price_min: form.priceMin.trim() === "" ? null : Number(form.priceMin),
+        metal: form.metal,
+        size_range: form.sizeRange,
       };
       const res = form.id
         ? await updateProduct(form.id, input)
@@ -95,6 +114,28 @@ export default function ProductTable({ products }: { products: Product[] }) {
         header: "カテゴリ",
         accessorKey: "category",
         cell: ({ getValue }) => categoryLabel(getValue<string>()),
+      },
+      {
+        header: "価格（〜から）",
+        id: "price",
+        cell: ({ row }) => {
+          const p = row.original;
+          const price = p.price_min ?? PRICE_TABLE[p.category];
+          if (!price) return "—";
+          return (
+            <span className={p.price_min == null ? "text-stone-400" : undefined}>
+              ¥{price.toLocaleString("ja-JP")}〜
+            </span>
+          );
+        },
+      },
+      {
+        header: "金属",
+        accessorKey: "metal",
+        cell: ({ getValue }) => {
+          const v = getValue<string | null>();
+          return v && v !== "unknown" ? metalLabel(v) : "—";
+        },
       },
       {
         header: "素材",
@@ -197,12 +238,61 @@ export default function ProductTable({ products }: { products: Product[] }) {
             </select>
           </div>
 
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className={labelClass}>最低価格（税込・円）</label>
+              <input
+                className={inputClass}
+                type="number"
+                min={0}
+                step={100}
+                value={form.priceMin}
+                placeholder={
+                  PRICE_TABLE[form.category]
+                    ? String(PRICE_TABLE[form.category])
+                    : "未設定"
+                }
+                onChange={(e) => setForm((f) => ({ ...f, priceMin: e.target.value }))}
+              />
+              <p className="mt-1 text-xs text-stone-400">
+                投稿文では「¥4,000〜（税込）」の形で使われます。空ならカテゴリ既定の価格。
+              </p>
+            </div>
+            <div>
+              <label className={labelClass}>サイズ</label>
+              <input
+                className={inputClass}
+                value={form.sizeRange}
+                placeholder="3〜25号"
+                onChange={(e) => setForm((f) => ({ ...f, sizeRange: e.target.value }))}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className={labelClass}>金属の使用</label>
+            <select
+              className={inputClass}
+              value={form.metal}
+              onChange={(e) => setForm((f) => ({ ...f, metal: e.target.value }))}
+            >
+              {METAL_OPTIONS.map((m) => (
+                <option key={m.value} value={m.value}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-stone-400">
+              「未確認」のままだと、投稿文でこの商品の金属使用には触れません。
+            </p>
+          </div>
+
           <div>
             <label className={labelClass}>素材</label>
             <input
               className={inputClass}
               value={form.material}
-              placeholder="ウォルナット / 真鍮 など"
+              placeholder="カリン / パープルハート など"
               onChange={(e) => setForm((f) => ({ ...f, material: e.target.value }))}
             />
           </div>

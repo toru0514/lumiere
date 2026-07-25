@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { generatePlan } from "@/lib/gemini";
-import type { Background, Material, Product } from "@/types";
+import { findPlannedPost } from "@/lib/postPlan";
+import { parseDesign, type Background, type Material, type Product } from "@/types";
 
 export const maxDuration = 60;
 
@@ -13,6 +14,10 @@ export async function POST(req: Request) {
     const backgroundIds: string[] = Array.isArray(body?.backgroundIds)
       ? body.backgroundIds
       : [];
+    const design = parseDesign(body ?? {});
+    const planned = findPlannedPost(
+      typeof body?.planRef === "string" ? body.planRef : null,
+    );
 
     if (!productId) {
       return NextResponse.json({ error: "商品が選択されていません。" }, { status: 400 });
@@ -51,8 +56,8 @@ export async function POST(req: Request) {
       backgrounds = backgroundIds.map((id) => map.get(id)).filter(Boolean) as Background[];
     }
 
-    const result = await generatePlan(product, material, backgrounds);
-    return NextResponse.json(result);
+    const result = await generatePlan(product, material, backgrounds, design, planned);
+    return NextResponse.json({ ...result, ...design });
   } catch (e) {
     const message = e instanceof Error ? e.message : "生成に失敗しました。";
     return NextResponse.json({ error: message }, { status: 500 });

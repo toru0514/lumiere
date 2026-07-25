@@ -11,7 +11,7 @@ const geistSans = Geist({
 
 export const metadata: Metadata = {
   title: "lumiere — 撮影プラン＆投稿文生成",
-  description: "Cloud9 のInstagram運用支援：撮影プランと投稿文・ハッシュタグを生成。",
+  description: "木材工房cloud9 のInstagram運用支援：撮影プランと投稿文・ハッシュタグを生成。",
 };
 
 export default function RootLayout({
@@ -29,7 +29,7 @@ export default function RootLayout({
                 <span className="text-xl font-semibold tracking-tight text-amber-700">
                   lumiere
                 </span>
-                <span className="text-[10px] text-stone-400">by Cloud9</span>
+                <span className="text-[10px] text-stone-400">by 木材工房cloud9</span>
               </Link>
             </div>
             <div className="px-3 pb-4">

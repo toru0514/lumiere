@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { generateCaptionFromImages, type CaptionImageInput } from "@/lib/gemini";
+import { parseDesign } from "@/types";
 
 export const maxDuration = 60;
 
@@ -14,6 +15,8 @@ export async function POST(req: Request) {
     const rawImages = Array.isArray(body?.images) ? body.images : [];
     const note: string | undefined =
       typeof body?.note === "string" ? body.note : undefined;
+    // 写真からの生成は単写真フィード固定。テーマ・目的だけ受け取る。
+    const design = { ...parseDesign(body ?? {}), format: "feed" as const };
 
     if (rawImages.length === 0) {
       return NextResponse.json(
@@ -47,8 +50,8 @@ export async function POST(req: Request) {
       images.push({ mimeType, data });
     }
 
-    const result = await generateCaptionFromImages(images, note);
-    return NextResponse.json(result);
+    const result = await generateCaptionFromImages(images, design, note);
+    return NextResponse.json({ ...result, theme: design.theme, goal: design.goal });
   } catch (e) {
     const message = e instanceof Error ? e.message : "生成に失敗しました。";
     return NextResponse.json({ error: message }, { status: 500 });

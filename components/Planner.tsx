@@ -4,22 +4,38 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
+  POST_FORMATS,
+  POST_GOALS,
+  POST_THEMES,
   categoryLabel,
   tagLabel,
   type Background,
   type GenerateResult,
   type Material,
+  type PostFormat,
+  type PostGoal,
+  type PostTheme,
   type Product,
 } from "@/types";
+import { MONTH1_POSTS, PINNED_POSTS, findPlannedPost } from "@/lib/postPlan";
 import { createDraft } from "@/app/drafts/actions";
 import SelectableCard from "@/components/SelectableCard";
 import EmptyState from "@/components/EmptyState";
-import { Button } from "@/components/ui";
+import { Button, inputClass, labelClass } from "@/components/ui";
 
 interface Props {
   products: Product[];
   materials: Material[];
   backgrounds: Background[];
+}
+
+/** ステップ見出しの丸番号。 */
+function StepBadge({ n }: { n: number }) {
+  return (
+    <span className="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-600 text-xs text-white">
+      {n}
+    </span>
+  );
 }
 
 export default function Planner({ products, materials, backgrounds }: Props) {
@@ -28,8 +44,23 @@ export default function Planner({ products, materials, backgrounds }: Props) {
   const [materialId, setMaterialId] = useState<string | null>(null);
   const [bgIds, setBgIds] = useState<string[]>([]);
 
+  const [planRef, setPlanRef] = useState<string>("");
+  const [theme, setTheme] = useState<PostTheme>("product");
+  const [goal, setGoal] = useState<PostGoal>("profile");
+  const [format, setFormat] = useState<PostFormat>("feed");
+
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
+
+  /** 投稿計画の枠を選んだら、テーマ・目的・形式を計画書の値に合わせる。 */
+  function selectPlan(ref: string) {
+    setPlanRef(ref);
+    const planned = findPlannedPost(ref);
+    if (!planned) return;
+    setTheme(planned.theme);
+    setGoal(planned.goal);
+    setFormat(planned.format);
+  }
 
   function toggleBg(id: string) {
     setBgIds((prev) =>
@@ -45,11 +76,32 @@ export default function Planner({ products, materials, backgrounds }: Props) {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productId, materialId, backgroundIds: bgIds }),
+        body: JSON.stringify({
+          productId,
+          materialId,
+          backgroundIds: bgIds,
+          theme,
+          goal,
+          format,
+          planRef: planRef || null,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "生成に失敗しました。");
-      const gen = data as GenerateResult;
+      const gen = data as GenerateResult & { warnings?: string[] };
+
+      // 書き直しても表現ルール違反が残った場合は、保存前に知らせる。
+      if (gen.warnings && gen.warnings.length > 0) {
+        const ok = confirm(
+          `表現ルールに反する箇所が残っています。\n\n${gen.warnings.join(
+            "\n",
+          )}\n\nこのまま下書きとして保存し、手で直しますか？`,
+        );
+        if (!ok) {
+          setGenerating(false);
+          return;
+        }
+      }
 
       // 生成のたびに未投稿として一覧へ追加する
       const saved = await createDraft({
@@ -65,6 +117,14 @@ export default function Planner({ products, materials, backgrounds }: Props) {
         },
         caption: gen.caption,
         hashtags: gen.hashtags,
+        theme,
+        goal,
+        format,
+        hook: gen.hook,
+        cta: gen.cta,
+        carousel: gen.carousel,
+        reel: gen.reel,
+        plan_ref: planRef || null,
       });
       if (!saved.ok || !saved.id) {
         throw new Error(saved.error ?? "保存に失敗しました。");
@@ -90,14 +150,104 @@ export default function Planner({ products, materials, backgrounds }: Props) {
     );
   }
 
+  const themeHint = POST_THEMES.find((t) => t.value === theme)?.hint;
+  const goalHint = POST_GOALS.find((g) => g.value === goal)?.hint;
+  const formatHint = POST_FORMATS.find((f) => f.value === format)?.hint;
+
   return (
     <div className="space-y-8">
-      {/* STEP 1 商品選択 */}
+      {/* STEP 1 投稿設計 */}
       <section>
         <h2 className="mb-3 text-sm font-semibold text-stone-700">
-          <span className="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-600 text-xs text-white">
-            1
-          </span>
+          <StepBadge n={1} />
+          何の投稿かを決める
+        </h2>
+
+        <div className="rounded-xl border border-stone-200 bg-white p-4">
+          <div>
+            <label className={labelClass}>投稿計画の枠から選ぶ（任意）</label>
+            <select
+              className={inputClass}
+              value={planRef}
+              onChange={(e) => selectPlan(e.target.value)}
+            >
+              <option value="">計画によらず作る</option>
+              <optgroup label="固定投稿">
+                {PINNED_POSTS.map((p) => (
+                  <option key={p.ref} value={p.ref}>
+                    {p.label}
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label="1ヶ月目（7/28〜8/23）">
+                {MONTH1_POSTS.map((p) => (
+                  <option key={p.ref} value={p.ref}>
+                    {p.date?.slice(5)} {p.label}
+                  </option>
+                ))}
+              </optgroup>
+            </select>
+            <p className="mt-1 text-xs text-stone-400">
+              選ぶとテーマ・目的・形式が計画書の設定に合わせて入り、フック案も生成に使われます。
+            </p>
+          </div>
+
+          <div className="mt-4 grid gap-4 sm:grid-cols-3">
+            <div>
+              <label className={labelClass}>テーマ</label>
+              <select
+                className={inputClass}
+                value={theme}
+                onChange={(e) => setTheme(e.target.value as PostTheme)}
+              >
+                {POST_THEMES.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-stone-400">{themeHint}</p>
+            </div>
+
+            <div>
+              <label className={labelClass}>主目的（CTAが決まります）</label>
+              <select
+                className={inputClass}
+                value={goal}
+                onChange={(e) => setGoal(e.target.value as PostGoal)}
+              >
+                {POST_GOALS.map((g) => (
+                  <option key={g.value} value={g.value}>
+                    {g.label}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-stone-400">{goalHint}</p>
+            </div>
+
+            <div>
+              <label className={labelClass}>形式</label>
+              <select
+                className={inputClass}
+                value={format}
+                onChange={(e) => setFormat(e.target.value as PostFormat)}
+              >
+                {POST_FORMATS.map((f) => (
+                  <option key={f.value} value={f.value}>
+                    {f.label}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-stone-400">{formatHint}</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* STEP 2 商品選択 */}
+      <section>
+        <h2 className="mb-3 text-sm font-semibold text-stone-700">
+          <StepBadge n={2} />
           商品を選ぶ
         </h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
@@ -113,12 +263,10 @@ export default function Planner({ products, materials, backgrounds }: Props) {
         </div>
       </section>
 
-      {/* STEP 2 木材選択 */}
+      {/* STEP 3 木材選択 */}
       <section>
         <h2 className="mb-3 text-sm font-semibold text-stone-700">
-          <span className="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-600 text-xs text-white">
-            2
-          </span>
+          <StepBadge n={3} />
           木材を選ぶ（任意）
         </h2>
         {materials.length === 0 ? (
@@ -146,12 +294,10 @@ export default function Planner({ products, materials, backgrounds }: Props) {
         )}
       </section>
 
-      {/* STEP 3 背景素材選択 */}
+      {/* STEP 4 背景素材選択 */}
       <section>
         <h2 className="mb-3 text-sm font-semibold text-stone-700">
-          <span className="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-600 text-xs text-white">
-            3
-          </span>
+          <StepBadge n={4} />
           背景素材を選ぶ（任意・複数可）
         </h2>
         {backgrounds.length === 0 ? (

@@ -2,7 +2,15 @@
 
 import { revalidatePath } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
-import type { DraftStatus, ShootPlan } from "@/types";
+import type {
+  CarouselSlide,
+  DraftStatus,
+  PostFormat,
+  PostGoal,
+  PostTheme,
+  ReelScript,
+  ShootPlan,
+} from "@/types";
 
 export interface ActionResult {
   ok: boolean;
@@ -17,6 +25,14 @@ export interface SaveDraftInput {
   shoot_plan: ShootPlan;
   caption: string;
   hashtags: string[];
+  theme: PostTheme;
+  goal: PostGoal;
+  format: PostFormat;
+  hook: string;
+  cta: string;
+  carousel: CarouselSlide[] | null;
+  reel: ReelScript | null;
+  plan_ref: string | null;
 }
 
 export async function createDraft(input: SaveDraftInput): Promise<ActionResult> {
@@ -31,6 +47,14 @@ export async function createDraft(input: SaveDraftInput): Promise<ActionResult> 
       shoot_plan: input.shoot_plan,
       caption: input.caption,
       hashtags: input.hashtags,
+      theme: input.theme,
+      goal: input.goal,
+      format: input.format,
+      hook: input.hook,
+      cta: input.cta,
+      carousel: input.carousel,
+      reel: input.reel,
+      plan_ref: input.plan_ref,
       status: "draft",
     })
     .select("id")
@@ -43,6 +67,10 @@ export async function createDraft(input: SaveDraftInput): Promise<ActionResult> 
 export interface SaveCaptionDraftInput {
   caption: string;
   hashtags: string[];
+  theme: PostTheme;
+  goal: PostGoal;
+  hook: string;
+  cta: string;
 }
 
 /**
@@ -62,6 +90,11 @@ export async function createCaptionDraft(
       shoot_plan: null,
       caption: input.caption,
       hashtags: input.hashtags,
+      theme: input.theme,
+      goal: input.goal,
+      format: "feed",
+      hook: input.hook,
+      cta: input.cta,
       status: "draft",
     })
     .select("id")
