@@ -301,3 +301,22 @@ lumiere/
 - 投稿後のエンゲージメントを記録し、効いたハッシュタグを学習（few-shot化）。
 - Creema / minne の商品ページ向けの文章生成も同じ商品マスターから流用。
 - ビジネスアカウントへ移行した際の Instagram Graph API 連携（自動下書き）。
+
+---
+
+## このリポジトリは統合により終了しました（2026-08-02）
+
+本アプリの機能は **video-script-app** の「撮影」セクションとして統合されました。
+以降の開発・運用はそちらで行います。
+
+- 統合先: https://github.com/toru0514/video-script-app
+- 本番: https://video-script-app-peach.vercel.app （撮影プラン / 写真から投稿文 / 下書き）
+
+### 統合の内容
+
+- ブランドルールは統合先の `src/lib/brand.ts` に一本化（本リポジトリの `lib/brand.ts` の内容を正として採用）
+- 商品マスタ `lumiere_products` は `vsg_products` に統合し、テーブルは削除
+- `lumiere_backgrounds` / `lumiere_materials` / `lumiere_drafts` は**テーブル名のまま統合先が使用中**（削除しないこと）
+- Vercel プロジェクト `lumiere` は削除済み
+
+設計と経緯は統合先の `docs/superpowers/specs/2026-07-25-lumiere-integration-design.md` を参照。
